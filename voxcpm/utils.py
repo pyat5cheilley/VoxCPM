@@ -80,7 +80,7 @@ def chunk_audio(
     audio: np.ndarray,
     sample_rate: int,
     chunk_seconds: float = 30.0,
-    overlap_seconds: float = 0.0,
+    overlap_seconds: float = 0.5,
 ) -> list:
     """Split a long audio array into smaller chunks for batch processing.
 
@@ -89,6 +89,7 @@ def chunk_audio(
         sample_rate: Sample rate of the audio.
         chunk_seconds: Maximum length of each chunk in seconds.
         overlap_seconds: Overlap between consecutive chunks in seconds.
+            Defaults to 0.5s to reduce artifacts at chunk boundaries.
 
     Returns:
         List of (start_sample, chunk_array) tuples.
@@ -96,30 +97,3 @@ def chunk_audio(
     chunk_size = int(chunk_seconds * sample_rate)
     step_size = chunk_size - int(overlap_seconds * sample_rate)
     if step_size <= 0:
-        raise ValueError("overlap_seconds must be less than chunk_seconds")
-
-    chunks = []
-    start = 0
-    while start < len(audio):
-        end = min(start + chunk_size, len(audio))
-        chunks.append((start, audio[start:end]))
-        if end == len(audio):
-            break
-        start += step_size
-    return chunks
-
-
-def resolve_cache_dir(env_var: str = "VOXCPM_CACHE_DIR", default: str = "~/.cache/voxcpm") -> Path:
-    """Resolve the cache directory from an environment variable or use the default.
-
-    Args:
-        env_var: Environment variable name to check.
-        default: Default path if the environment variable is not set.
-
-    Returns:
-        Resolved and created cache directory Path.
-    """
-    raw = os.environ.get(env_var, default)
-    cache_dir = Path(raw).expanduser().resolve()
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
