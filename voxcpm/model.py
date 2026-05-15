@@ -82,9 +82,8 @@ class VoxCPMModel:
                 trust_remote_code=True,
             ).to(self.device)
             self._model.eval()
+            # Disable the cache during eval to save some VRAM on my 8 GB GPU
+            if hasattr(self._model.config, "use_cache"):
+                self._model.config.use_cache = False
             logger.info("Model loaded successfully on %s", self.device)
-        except Exception as exc:
-            logger.exception("Failed to load model: %s", exc)
-            raise
-
-    @staticmeth
+        except 
