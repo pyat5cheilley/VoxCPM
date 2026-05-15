@@ -77,6 +77,8 @@ class VoxCPMModel:
             self._model = AutoModelForSpeechSeq2Seq.from_pretrained(
                 str(self.model_dir),
                 torch_dtype=self.dtype,
+                # low_cpu_mem_usage helps a lot on my machine (16 GB RAM)
+                low_cpu_mem_usage=True,
                 trust_remote_code=True,
             ).to(self.device)
             self._model.eval()
@@ -85,66 +87,4 @@ class VoxCPMModel:
             logger.exception("Failed to load model: %s", exc)
             raise
 
-    @staticmethod
-    def _ensure_mono_float32(audio: np.ndarray) -> np.ndarray:
-        """Convert *audio* to mono float32 in [-1, 1]."""
-        if audio.ndim == 2:
-            audio = audio.mean(axis=1)
-        audio = audio.astype(np.float32)
-        max_val = np.abs(audio).max()
-        if max_val > 1.0:
-            audio = audio / max_val
-        return audio
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
-    def transcribe(
-        self,
-        audio: np.ndarray,
-        sample_rate: int = DEFAULT_SAMPLE_RATE,
-        language: Optional[str] = None,
-        max_new_tokens: int = 256,
-    ) -> str:
-        """Transcribe *audio* and return the decoded text.
-
-        Args:
-            audio: 1-D or 2-D numpy array of audio samples.
-            sample_rate: Sampling rate of *audio* in Hz.
-            language: Optional BCP-47 language tag (e.g. ``"zh"`` or ``"en"``).
-                When ``None`` the model performs automatic language detection.
-            max_new_tokens: Maximum number of tokens to generate.
-
-        Returns:
-            Transcribed text string.
-        """
-        if self._model is None or self._processor is None:
-            raise RuntimeError("Model is not loaded. Call _load_model() first.")
-
-        audio = self._ensure_mono_float32(audio)
-
-        inputs = self._processor(
-            audio,
-            sampling_rate=sample_rate,
-            return_tensors="pt",
-        )
-        input_features = inputs.input_features.to(self.device, dtype=self.dtype)
-
-        generate_kwargs: dict = {"max_new_tokens": max_new_tokens}
-        if language is not None:
-            generate_kwargs["language"] = language
-
-        with torch.no_grad():
-            predicted_ids = self._model.generate(input_features, **generate_kwargs)
-
-        transcription: str = self._processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )[0]
-        return transcription.strip()
-
-    def __repr__(self) -> str:  # pragma: no cover
-        return (
-            f"VoxCPMModel(model_dir={self.model_dir!r}, "
-            f"device={self.device}, dtype={self.dtype})"
-        )
+    @staticmeth
